@@ -1,4 +1,4 @@
-from Cromossomo import Cromossomo
+from chromosomes import Cromossomo
 import math
 import random
 import copy
