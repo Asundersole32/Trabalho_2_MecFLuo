@@ -1,8 +1,8 @@
-class Cromossomo:
-    def __init__(self,valor_binario):
-        self.valor_binario = valor_binario
-        self.aptidao = None
-        self.decodificado = None
+class Chromosome:
+    def __init__(self, binary_value):
+        self.binary_value = binary_value
+        self.aptitude = None
+        self.decoded = None
 
-    def get_aptidao(self):
-        return self.aptidao
+    def get_aptitude(self):
+        return self.aptitude
