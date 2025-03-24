@@ -1,144 +1,88 @@
-from chromosomes import Chromosome
-import math
 import random
 import copy
 
-def mutation(children):
-    nurse = ''
-    for bit in children.binary_value:
-        bitM = bit
-        mutation_factor = random.uniform(0, 1)
-        if(mutation_factor <= 0.07):
-            bitM = abs(int(bitM)-1)
-        nurse += str(bitM)
+def tournament_selection(population, fitness, k=3):
+    """Seleciona o melhor indivíduo dentre k candidatos escolhidos aleatoriamente."""
+    selected = random.sample(population, k)
+    return min(selected, key=fitness)
 
-    children.binary_value = nurse
-    children.decoded = decodification(children.binary_value)
-    children.aptitude = calculate_fitness(children.decoded)
-    return children
+def crossover_individuals(ind1, ind2):
+    """Realiza um crossover de um ponto entre dois indivíduos (listas de floats)."""
+    point = random.randint(1, len(ind1) - 1)
+    child1 = ind1[:point] + ind2[point:]
+    child2 = ind2[:point] + ind1[point:]
+    return child1, child2
 
+def mutate_individual(ind, dam, mutation_rate):
+    """
+    Aplica mutação em cada gene (espessura) do indivíduo.
+    A mutação consiste em ajustar a espessura com uma perturbação aleatória
+    limitada a 10% do intervalo disponível para aquele nível.
+    """
+    new_ind = ind.copy()
+    for i in range(len(new_ind)):
+        if random.random() < mutation_rate:
+            lower_bound = dam.minimum_thickness(i + 1)
+            upper_bound = dam.thickness_max
+            delta = (upper_bound - lower_bound) * 0.1
+            new_val = new_ind[i] + random.uniform(-delta, delta)
+            new_val = max(new_val, lower_bound)
+            new_val = min(new_val, upper_bound)
+            new_ind[i] = new_val
+    return new_ind
 
-def crossover(chromosomeA, chromosomeB):
-    chromosome_size = len(chromosomeA.binary_value)
-    cut_point = random.randint(1, chromosome_size-1)
+def gera_populacao_inicial_dam(dam, population_size):
+    """Gera uma população inicial onde cada indivíduo é uma lista de espessuras válidas."""
+    population = []
+    for _ in range(population_size):
+        individual = []
+        for h in range(1, dam.height_max + 1):
+            lower_bound = dam.minimum_thickness(h)
+            upper_bound = dam.thickness_max
+            value = random.uniform(lower_bound, upper_bound)
+            individual.append(value)
+        population.append(individual)
+    return population
 
-    part_oneA = chromosomeA.binary_value[:cut_point]
-    part_twoB = chromosomeA.binary_value[cut_point:]
-    part_oneB = chromosomeB.binary_value[:cut_point]
-    part_twoB = chromosomeB.binary_value[cut_point:]
-
-    valorBinfilhoUm = part_oneA + part_twoB
-    filhoUm = Chromosome(valorBinfilhoUm)
-    filhoUm.decoded = decodification(valorBinfilhoUm)
-    filhoUm.aptitude = calculate_fitness(filhoUm.decoded)
-
-    valorBinfilhoDois = part_oneB + part_twoB
-    filhoDois = Chromosome(valorBinfilhoDois)
-    filhoDois.decoded = decodification(valorBinfilhoDois)
-    filhoDois.aptitude = calculate_fitness(filhoDois.decoded)
-
-    return filhoUm, filhoDois
-
-def decodification(valor_binario):
-    qtd_bits = len(valor_binario)
-    valor_decimal = int(valor_binario, 2)
-    return -20 + ((20+20) * (valor_decimal / (2**qtd_bits-1)))
-
-
-def build_binary_value():
-    # Tamanho do cromosso é 6(potencia) + ~3,3 (precisao)
-    tamanho = 10
-    cromossomo = ''
-    for _ in range(tamanho):
-        bit = random.randint(0, 1)
-        cromossomo += str(bit)
-
-    return cromossomo
-
-
-def calculate_fitness(valor_decodificado):
-    return (math.cos(valor_decodificado) * valor_decodificado) + 2
-
-def gera_populacao_inicial(numero_populacao):
-    lista_populacao = []
-
-    for _ in range(numero_populacao):
-        valor_binario = build_binary_value()
-        cromossomo = Chromosome(valor_binario)
-        cromossomo.decoded = decodification(valor_binario)
-        cromossomo.aptitude = calculate_fitness(cromossomo.decoded)
-        lista_populacao.append(cromossomo)
-
-    return lista_populacao
-
-def algoritmo_genetico(numero_populacao, geracoes):
-    # Lista para armazenar os resultados para o gráfico
-    # Guarda a melhor aptitude de Cada nova iteração
-    lista_melhor_aptidao = []
-
-    # Definicao da populacao inicial
-    lista_populacao = gera_populacao_inicial(numero_populacao)
-
-    for _ in range(geracoes):
-        lista_selecionados = []
-
-        for i in range(len(lista_populacao)):
-            # Aleatoriamente escolhe dois cromossomos para comparar
-            posicao_Aleatoria = random.randint(0, len(lista_populacao)-1)
-            cromossomo_1 = copy.deepcopy(lista_populacao[posicao_Aleatoria])
-
-            posicao_Aleatoria = random.randint(0, len(lista_populacao)-1)
-            cromossomo_2 = copy.deepcopy(lista_populacao[posicao_Aleatoria])
-
-            # Compara qual cromossomo é o melhor (menor aptitude)
-            if cromossomo_1.aptitude < cromossomo_2.aptitude:
-                lista_selecionados.append(cromossomo_1)
+def algoritmo_genetico_dam(dam, population_size, generations, mutation_rate=0.1, crossover_rate=0.7, tournament_k=3):
+    """
+    Executa o algoritmo genético para otimizar o projeto da barragem.
+    Cada indivíduo é uma lista de espessuras para cada nível. A função fitness
+    é dada pelo método objective_function da classe Dam.
+    """
+    # Gera população inicial
+    population = gera_populacao_inicial_dam(dam, population_size)
+    
+    # Função de fitness: menor custo é melhor
+    def fitness(ind):
+        return dam.objective_function(ind)
+    
+    best_costs = []
+    for gen in range(generations):
+        new_population = []
+        while len(new_population) < population_size:
+            parent1 = tournament_selection(population, fitness, k=tournament_k)
+            parent2 = tournament_selection(population, fitness, k=tournament_k)
+            # Realiza crossover com probabilidade definida
+            if random.random() < crossover_rate:
+                child1, child2 = crossover_individuals(parent1, parent2)
             else:
-                lista_selecionados.append(cromossomo_2)
-
-        lista_populacao_nova = []
-
-        for i in range(0, len(lista_selecionados), 2):
-            cromossomoA = lista_selecionados[i]
-            cromossomoB = lista_selecionados[i+1]
-
-            # Crossover
-            taxaCrossover = random.uniform(0, 1)
-            if(taxaCrossover <= 0.6):
-                filho1, filho2 = crossover(cromossomoA, cromossomoB)
-            else:
-                filho1, filho2 = cromossomoA, cromossomoB
-
-            # Mutação
-            filho1 = mutation(filho1)
-            filho2 = mutation(filho2)
-
-            # Inserção na nova população
-            lista_populacao_nova.append(filho1)
-            lista_populacao_nova.append(filho2)
-
-        # Ordenação dos filhos em ordem crescente de aptidão
-        lista_populacao_nova = sorted(lista_populacao_nova, key=Chromosome.get_aptitude)
-
-        piorFilho = lista_populacao_nova[-1]
-
-        # Ordenação dos pais em ordem crescente de aptidão
-        lista_populacao = sorted(lista_populacao, key=Chromosome.get_aptitude)
-        melhor_pai = lista_populacao[0]
-
-        if (piorFilho.aptitude > melhor_pai.aptitude):
-            # Removendo o pior children
-            for i in range(len(lista_populacao_nova)):
-                if lista_populacao_nova[i].aptitude == piorFilho.aptitude:
-                    del lista_populacao_nova[i]
-                    break
-
-            # E mantendo o melhor pai da população anterior para a próxima geração
-            lista_populacao_nova.append(melhor_pai)
-
-        lista_populacao_nova = sorted(lista_populacao_nova, key=Chromosome.get_aptitude)
-        lista_melhor_aptidao.append(lista_populacao_nova[0])
-
-        lista_populacao = lista_populacao_nova
-
-    return lista_melhor_aptidao
+                child1, child2 = parent1.copy(), parent2.copy()
+            # Aplica mutação
+            child1 = mutate_individual(child1, dam, mutation_rate)
+            child2 = mutate_individual(child2, dam, mutation_rate)
+            new_population.extend([child1, child2])
+        population = new_population[:population_size]
+        
+        # Elitismo simples: preserva o melhor indivíduo da geração
+        best_parent = min(population, key=fitness)
+        worst_child = max(population, key=fitness)
+        if fitness(best_parent) < fitness(worst_child):
+            index = population.index(worst_child)
+            population[index] = best_parent
+        
+        best_ind = min(population, key=fitness)
+        best_costs.append(fitness(best_ind))
+        print(f"Geração {gen+1}: Melhor custo = {fitness(best_ind)}")
+        
+    return best_ind, best_costs
