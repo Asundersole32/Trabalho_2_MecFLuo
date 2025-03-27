@@ -8,10 +8,10 @@ def main():
         fluid_densid=997,
         gravity=9.81,
         material_resistence=2500,
-        thickness_min=0.1,  # Este parâmetro pode ser utilizado se desejar fixar um mínimo extra
-        thickness_max=10,
+        thickness_min=5,  # Este parâmetro pode ser utilizado se desejar fixar um mínimo extra
+        thickness_max=100,
         height_max=5,
-        material_cost=50
+        material_cost=200
     )
 
     # Parâmetros do algoritmo genético

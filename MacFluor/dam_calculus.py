@@ -27,7 +27,7 @@ class Dam:
             thickness_values.append(thickness)
 
             # Verificar se a espessura é suficiente para suportar a pressão
-            depth = (i + 1) * self.height_max / 7  # Profundidade da camada (usando height_max como profundidade)
+            depth = (i + 1) * self.height_max  # Profundidade da camada (usando height_max como profundidade)
             pressure_at_depth = self.hydrostatic_pressure(depth) / 1000  # Conversão para kPa
             min_thickness_required = pressure_at_depth / self.material_resistence
 
@@ -36,7 +36,7 @@ class Dam:
                 break
 
             # Calcular o custo total da barragem (custo proporcional à espessura)
-            total_cost += thickness  # Custo proporcional à espessura (simplificado)
+            total_cost += thickness * self.material_cost  # Custo proporcional à espessura (simplificado)
 
         if not valid:
             return float('inf')  # Penalidade se as restrições de espessura não forem atendidas
